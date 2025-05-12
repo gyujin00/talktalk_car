@@ -1,7 +1,10 @@
+// lib/screens/voice_command_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/voice_command_service.dart';
 import '../services/tts_service.dart';
+import '../services/speech_service.dart';
 import '../widget/voice_wave_animation_widget.dart';
 import 'dart:async';
 
@@ -13,6 +16,8 @@ class VoiceCommandScreen extends StatefulWidget {
 class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
   final VoiceCommandService _voiceService = VoiceCommandService();
   final TTSService _ttsService = TTSService();
+  final SpeechService _speechService = SpeechService();
+
   String _state = 'listening';
   String _recognizedText = '';
   bool _isListening = false;
@@ -25,10 +30,19 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
     super.initState();
     _initTTS();
     _startListeningTimer();
+    _startSTT();
   }
 
   Future<void> _initTTS() async {
     await _ttsService.speak("음성 명령 화면입니다. 명령을 말씀해주세요.");
+  }
+
+  Future<void> _startSTT() async {
+    final result = await _speechService.listen();
+    if (result.isNotEmpty) {
+      _textController.text = result;
+      _startVoiceCommandFlow();
+    }
   }
 
   @override
