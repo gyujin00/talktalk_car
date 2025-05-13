@@ -1,42 +1,67 @@
-// lib/services/websocket_service.dart
-
 import 'dart:async';
-import 'dart:convert';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
 
-class MockWebSocketService {
-  final StreamController<String> _controller = StreamController<String>.broadcast();
+class WebSocketService {
+  WebSocketChannel? _channel;
+  final _controller = StreamController<String>.broadcast();
   bool _isConnected = false;
 
-  // WebSocket 연결 시뮬레이션
+  final String _url = 'ws://192.168.56.1:8000/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyIiwiZXhwIjoxNzQ3MTM1MDgyfQ.6ibseeZkVtiLtCfVFsX8DDJBZjWk-xiRhWZNAQ83izY'; // ✅ 실제 FastAPI WebSocket 주소
+
+  /// WebSocket 연결
   void connect() {
-    _isConnected = true;
-    print("Mock WebSocket 연결됨");
-    // 주기적으로 데이터를 전송하여 테스트
-    Timer.periodic(Duration(seconds: 1), (timer) {
-      if (!_isConnected) {
-        timer.cancel();
-        return;
-      }
-      // 가상 데이터 생성
-      final mockData = {
-        "speed": (20 + timer.tick % 40).toString(),
-        "battery": (100 - timer.tick % 30).toString(),
-        "mode": "운행 중"
-      };
-      _controller.add(jsonEncode(mockData));
-    });
+    if (_isConnected) return;
+
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse(_url));
+      _isConnected = true;
+      print("✅ WebSocket 연결됨: $_url");
+
+      _channel!.stream.listen(
+            (message) {
+          print("📥 수신된 메시지: $message");
+          _controller.add(message);
+        },
+        onError: (error) {
+          print("❌ WebSocket 오류: $error");
+          _isConnected = false;
+          _controller.addError(error);
+        },
+        onDone: () {
+          print("🛑 WebSocket 연결 종료됨");
+          _isConnected = false;
+          _controller.close();
+        },
+      );
+    } catch (e) {
+      print("🚫 WebSocket 연결 실패: $e");
+    }
   }
 
-  // 데이터 스트림 반환
+  /// 메시지 전송
+  void send(String message) {
+    if (_isConnected && _channel != null) {
+      _channel!.sink.add(message);
+      print("📤 전송한 명령: $message");
+    } else {
+      print("⚠️ WebSocket 연결 안 됨: 메시지를 전송할 수 없음");
+    }
+  }
+
+  /// 연결 종료
+  void disconnect() {
+    if (_isConnected && _channel != null) {
+      _channel!.sink.close(status.goingAway);
+      _controller.close();
+      _isConnected = false;
+      print("🔌 WebSocket 연결 해제됨");
+    }
+  }
+
+  /// 서버에서 수신되는 메시지를 스트림으로 반환
   Stream<String> get stream => _controller.stream;
 
-  // 연결 상태 확인
+  /// 연결 상태
   bool get isConnected => _isConnected;
-
-  // 연결 해제
-  void disconnect() {
-    _isConnected = false;
-    _controller.close();
-    print("Mock WebSocket 연결 해제됨");
-  }
 }

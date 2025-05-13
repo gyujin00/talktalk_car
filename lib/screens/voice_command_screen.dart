@@ -1,5 +1,3 @@
-// lib/screens/voice_command_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/voice_command_service.dart';
@@ -18,12 +16,11 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
   final TTSService _ttsService = TTSService();
   final SpeechService _speechService = SpeechService();
 
-  String _state = 'listening';
+  String _state = 'listening'; // 'listening', 'recognized', 'executing'
   String _recognizedText = '';
   bool _isListening = false;
   Timer? _listeningTimer;
   int _remainingSeconds = 10;
-  final TextEditingController _textController = TextEditingController();
 
   @override
   void initState() {
@@ -40,45 +37,16 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
   Future<void> _startSTT() async {
     final result = await _speechService.listen();
     if (result.isNotEmpty) {
-      _textController.text = result;
+      _recognizedText = result;
+      _cancelListeningTimer();
       _startVoiceCommandFlow();
+    } else {
+      await _ttsService.speak("명령을 인식하지 못했습니다.");
+      if (mounted) Navigator.pop(context);
     }
-  }
-
-  @override
-  void dispose() {
-    _ttsService.stop();
-    _cancelListeningTimer();
-    _textController.dispose();
-    super.dispose();
-  }
-
-  void _cancelListeningTimer() {
-    _listeningTimer?.cancel();
-    _listeningTimer = null;
-    setState(() {
-      _remainingSeconds = 10;
-    });
   }
 
   void _startVoiceCommandFlow() async {
-    final text = _textController.text.trim();
-    if (text.isEmpty) {
-      await _ttsService.speak("명령어를 입력해주세요.");
-      return;
-    }
-
-    setState(() {
-      _state = 'processing';
-      _isListening = true;
-      _remainingSeconds = 10;
-    });
-
-    _cancelListeningTimer();
-    await _ttsService.speak("명령을 처리합니다.");
-
-    _recognizedText = text;
-
     setState(() {
       _state = 'recognized';
       _isListening = false;
@@ -86,9 +54,15 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
 
     await _ttsService.speak("인식 결과는 $_recognizedText 입니다.");
     await Future.delayed(Duration(seconds: 2));
-    await _voiceService.processCommand(_recognizedText);
-    await _ttsService.speak("명령을 처리했습니다.");
 
+    setState(() {
+      _state = 'executing';
+    });
+
+    await _ttsService.speak("$_recognizedText 명령을 수행 중입니다.");
+    await _voiceService.processCommand(_recognizedText);
+
+    await _ttsService.speak("명령을 처리했습니다.");
     if (mounted) {
       Navigator.pop(context);
     }
@@ -103,11 +77,26 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
         });
       } else {
         timer.cancel();
-        if (mounted && _textController.text.trim().isEmpty) {
+        if (mounted) {
           Navigator.pop(context);
         }
       }
     });
+  }
+
+  void _cancelListeningTimer() {
+    _listeningTimer?.cancel();
+    _listeningTimer = null;
+    setState(() {
+      _remainingSeconds = 10;
+    });
+  }
+
+  @override
+  void dispose() {
+    _ttsService.stop();
+    _cancelListeningTimer();
+    super.dispose();
   }
 
   @override
@@ -119,14 +108,16 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
         backgroundColor: Colors.blueAccent,
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Expanded(child: _buildStatusBox()),
-            SizedBox(height: 24),
-            _buildMicButton(),
-          ],
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              _buildStatusBox(),
+              SizedBox(height: 24),
+              _buildMicButton(),
+            ],
+          ),
         ),
       ),
     );
@@ -139,18 +130,13 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
         content = Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            VoiceWaveAnimationWidget(),
-            SizedBox(height: 20),
-            Text('명령어를 입력하세요...', style: _statusTextStyle()),
-            SizedBox(height: 16),
-            TextField(
-              controller: _textController,
-              decoration: InputDecoration(hintText: '엔터를 눌러 전송'),
-              onSubmitted: (text) {
-                _cancelListeningTimer();
-                _startVoiceCommandFlow();
-              },
+            SizedBox(
+              width: 150,
+              height: 150,
+              child: VoiceWaveAnimationWidget(),
             ),
+            SizedBox(height: 20),
+            Text('음성 인식 중...', style: _statusTextStyle()),
             SizedBox(height: 10),
             CircularProgressIndicator(color: Colors.white),
           ],
@@ -170,13 +156,13 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
           ],
         );
         break;
-      case 'processing':
+      case 'executing':
         content = Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: Colors.white),
             SizedBox(height: 16),
-            Text('$_recognizedText 중입니다...', style: _statusTextStyle()),
+            Text('$_recognizedText 명령을 수행 중입니다.', style: _statusTextStyle()),
           ],
         );
         break;
@@ -201,8 +187,6 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
         if (_isListening) {
           _cancelListeningTimer();
           Navigator.pop(context);
-        } else {
-          _startVoiceCommandFlow();
         }
       },
       child: Container(
@@ -217,16 +201,14 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                _isListening ? '음성 명령 취소 🎤' : '음성 명령 입력... 🎤',
+                '음성 명령 취소 🎤',
                 style: GoogleFonts.roboto(fontSize: 26),
               ),
-              if (_isListening) ...[
-                SizedBox(height: 10),
-                Text(
-                  '$_remainingSeconds초 남음',
-                  style: TextStyle(fontSize: 20, color: Colors.red),
-                ),
-              ],
+              SizedBox(height: 10),
+              Text(
+                '$_remainingSeconds초 남음',
+                style: TextStyle(fontSize: 20, color: Colors.red),
+              ),
             ],
           ),
         ),
@@ -240,3 +222,7 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
     color: Colors.white,
   );
 }
+
+
+
+
