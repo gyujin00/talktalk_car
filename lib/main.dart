@@ -1,3 +1,4 @@
+
 //lib/main.dart
 import 'package:flutter/material.dart';
 import 'screens/main_screen.dart';
@@ -17,6 +18,8 @@ class TalkTalkCarApp extends StatelessWidget {
 
 
 
+
+
 /*
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -25,7 +28,7 @@ void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
   final channel = WebSocketChannel.connect(
-    Uri.parse('ws://192.168.56.1:8000/ws'), // IP는 Python 서버가 켜진 컴퓨터의 IP로 바꿔줘
+    Uri.parse('ws://172.31.89.176:8000/ws'), // IP는 Python 서버가 켜진 컴퓨터의 IP로 바꿔줘
   );
 
   @override
@@ -55,5 +58,5 @@ class MyApp extends StatelessWidget {
   }
 }
 
+*/
 
- */

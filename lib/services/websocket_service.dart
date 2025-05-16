@@ -7,7 +7,7 @@ class WebSocketService {
   final _controller = StreamController<String>.broadcast();
   bool _isConnected = false;
 
-  final String _url = 'ws://192.168.56.1:8000/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyIiwiZXhwIjoxNzQ3MTM1MDgyfQ.6ibseeZkVtiLtCfVFsX8DDJBZjWk-xiRhWZNAQ83izY'; // ✅ 실제 FastAPI WebSocket 주소
+  final String _url = 'ws://172.31.89.176:8000/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyIiwiZXhwIjoxNzQ3MTM4NzQ2fQ.s3aJ4ZPnbAwUBpQ54ohwipgDEHG4L887D2g14RQt4Bw'; // ✅ 실제 FastAPI WebSocket 주소
 
   /// WebSocket 연결
   void connect() {
