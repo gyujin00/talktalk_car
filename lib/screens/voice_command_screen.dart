@@ -25,13 +25,14 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
   @override
   void initState() {
     super.initState();
-    _initTTS();
-    _startListeningTimer();
-    _startSTT();
+    _startFlowAfterTTS(); // TTS가 끝난 후 STT와 타이머 시작
   }
 
-  Future<void> _initTTS() async {
-    await _ttsService.speak("음성 명령 화면입니다. 명령을 말씀해주세요.");
+  Future<void> _startFlowAfterTTS() async {
+    await _ttsService.speak("명령을 말씀해주세요.");
+    await Future.delayed(Duration(milliseconds: 100));
+    _startListeningTimer(); // 🔹 안내 후 타이머 시작
+    _startSTT();            // 🔹 STT 시작
   }
 
   Future<void> _startSTT() async {
@@ -70,16 +71,16 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
 
   void _startListeningTimer() {
     _isListening = true;
-    _listeningTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _remainingSeconds = 10;
+    _listeningTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
       if (_remainingSeconds > 0) {
         setState(() {
           _remainingSeconds--;
         });
       } else {
         timer.cancel();
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        await _ttsService.speak("명령이 취소되었습니다."); // 🔊 안내 멘트 추가
+        if (mounted) Navigator.pop(context);            // 종료
       }
     });
   }
@@ -183,10 +184,11 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
 
   Widget _buildMicButton() {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (_isListening) {
           _cancelListeningTimer();
-          Navigator.pop(context);
+          await _ttsService.speak("명령이 취소되었습니다.");
+          if (mounted) Navigator.pop(context);
         }
       },
       child: Container(
@@ -222,7 +224,3 @@ class _VoiceCommandScreenState extends State<VoiceCommandScreen> {
     color: Colors.white,
   );
 }
-
-
-
-
